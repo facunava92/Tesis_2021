@@ -2,6 +2,10 @@
 
 #include <SSD1306Wire.h>
 #include <OLEDDisplayUi.h>
+#include "images.h"
+#include "fonts.h"
+#include "configuration.h"
+
 
 namespace graphics
 {

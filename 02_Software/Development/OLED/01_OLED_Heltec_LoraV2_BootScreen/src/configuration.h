@@ -1,5 +1,18 @@
 #pragma once
 
+// -----------------------------------------------------------------------------
+// Version
+// -----------------------------------------------------------------------------
+#define APP_VERSION 0.1
+
+// -----------------------------------------------------------------------------
+// Configuration
+// -----------------------------------------------------------------------------
+
+/// Convert a preprocessor name into a quoted string
+#define xstr(s) str(s)
+#define str(s) #s
+
 // This string must exactly match the case used in release file names or the android updater won't work
 #define HW_VENDOR HardwareModel_HELTEC
 

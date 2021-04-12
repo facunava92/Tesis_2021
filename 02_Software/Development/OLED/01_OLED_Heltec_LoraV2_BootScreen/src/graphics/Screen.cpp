@@ -1,124 +1,165 @@
 #include "Screen.h"
-#include "images.h"
-#include "configuration.h"
+static uint16_t displayWidth;
+static uint16_t displayHeight;
 
-/* Definimos las fuentes predeterminadas en las OLEDDisplayFonts.h*/
-#define FONT_SMALL  ArialMT_Plain_10 // W:10, H:13
-#define FONT_MEDIUM ArialMT_Plain_16 // W:16, H:19
-#define FONT_LARGE  ArialMT_Plain_24 // W:24, H:28
+#define SCREEN_WIDTH  displayWidth  // 128 px
+#define SCREEN_HEIGHT displayHeight // 64  px
 
 namespace graphics
 {
 
-void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(FONT_SMALL);
-  display->drawString(0, 0, String(millis()));
-}
+/* Llamado y declaracion del constructor*/
+Screen::Screen(uint8_t address, int sda, int scl) : dispdev(address, sda, scl), ui(&dispdev){};
 
-void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+void drawBootScreen(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   // draw an xbm image.
   // Please note that everything that should be transitioned
   // needs to be drawn relative to x and y
 
-  display->drawXbm(x + 34, y + 14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits);
-}
-
-void drawFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  // Demonstrates the 3 included default sizes. The fonts come from SSD1306Fonts.h file
-  // Besides the default fonts there will be a program to convert TrueType fonts into this format
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(FONT_SMALL);
-  display->drawString(0 + x, 10 + y, "Arial 10");
-
-  display->setFont(FONT_MEDIUM);
-  display->drawString(0 + x, 20 + y, "Arial 16");
-
-  display->setFont(FONT_LARGE);
-  display->drawString(0 + x, 34 + y, "Arial 24");
-}
-
-void drawFrame3(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  // Text alignment demo
-  display->setFont(FONT_SMALL);
-
-  // The coordinates define the left starting point of the text
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->drawString(0 + x, 11 + y, "Left aligned (0,10)");
-
+  display->drawXbm((((SCREEN_WIDTH-NaNo_Logo_width))/2), ((SCREEN_HEIGHT-NaNo_Logo_height-Roboto_Light_Italic_16_height)/2), 
+                      NaNo_Logo_width, NaNo_Logo_height, NaNo_Logo_bits);
   // The coordinates define the center of the text
   display->setTextAlignment(TEXT_ALIGN_CENTER);
-  display->drawString(64 + x, 22 + y, "Center aligned (64,22)");
+  display->setFont(Roboto_Light_Italic_16);
+  display->drawString(64 + x, SCREEN_HEIGHT - Roboto_Light_Italic_16_height, "NaNo");
 
-  // The coordinates define the right end of the text
-  display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  display->drawString(128 + x, 33 + y, "Right aligned (128,33)");
-}
-
-void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  // Demo for drawStringMaxWidth:
-  // with the third parameter you can define the width after which words will be wrapped.
-  // Currently only spaces and "-" are allowed for wrapping
+   // Draw version in upper right
   display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(FONT_SMALL);
-  display->drawStringMaxWidth(0 + x, 10 + y, 128, "Lorem ipsum\n dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.");
+  display->setFont(Custom_ArialMT_Plain_10);
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%s%s", "v ", xstr(APP_VERSION));
+  display->drawString(x + SCREEN_WIDTH - display->getStringWidth(buf), y + SCREEN_HEIGHT - 10, buf);
+
 }
-
-
-FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3, drawFrame4 };
-int frameCount = 4;
-
-OverlayCallback overlays[] = { msOverlay };
-int overlaysCount = 1;
-
-/* Llamado y declaracion del constructor*/
-Screen::Screen(uint8_t address, int sda, int scl) : dispdev(address, sda, scl), ui(&dispdev){};
-
 
 void Screen::setup()
 {
+    // Initialising the UI will init the display too.
+    ui.init();
+
     // The ESP is capable of rendering 60fps in 80Mhz mode
     // but that won't give you much time for anything else
     // run it in 160Mhz mode or just set it to 30 fps
     ui.setTargetFPS(60);
 
-    // Customize the active and inactive symbol
-    ui.setActiveSymbol(activeSymbol);
-    ui.setInactiveSymbol(inactiveSymbol);
-
-    // You can change this to
-    // TOP, LEFT, BOTTOM, RIGHT
-    ui.setIndicatorPosition(BOTTOM);
-
-    // Defines where the first frame is located in the bar.
-    ui.setIndicatorDirection(LEFT_RIGHT);
+    // Don't show the page swipe dots while in boot screen.
+    ui.disableAllIndicators();
 
     // You can change the transition that is used
     // SLIDE_LEFT, SLIDE_RIGHT, SLIDE_UP, SLIDE_DOWN
     ui.setFrameAnimation(SLIDE_LEFT);
+    
+    // Require presses to switch between frames.
+    ui.disableAutoTransition();
 
     // Add frames
-    ui.setFrames(frames, frameCount);
+    static FrameCallback bootFrames[] = {drawBootScreen};
+    static const int bootFrameCount = sizeof(bootFrames) / sizeof(bootFrames[0]);
+    ui.setFrames(bootFrames, bootFrameCount);
 
     // Add overlays
-    ui.setOverlays(overlays, overlaysCount);
+    //ui.setOverlays(overlays, overlaysCount);
 
-    // Initialising the UI will init the display too.
-    ui.init();
-
+    
+    displayWidth  = dispdev.width();
+    displayHeight = dispdev.height();
 
 #ifdef SCREEN_MIRROR
     dispdev.mirrorScreen();
 #elif defined(SCREEN_FLIP_VERTICALLY)
     dispdev.flipScreenVertically();
 #endif
+}
 
+int32_t Screen::runOnce()
+{
+    // If we don't have a screen, don't ever spend any CPU for us.
+    if (!useDisplay) {
+        enabled = false;
+        return RUN_SAME;
+    }
+
+    // Show boot screen for first 3 seconds, then switch to normal operation.
+    static bool showingBootScreen = true;
+    if (showingBootScreen && (millis() > 5000)) {
+        DEBUG_MSG("Done with boot screen...\n");
+        stopBootScreen();
+        showingBootScreen = false;
+    }
+
+    // Process incoming commands.
+    for (;;) {
+        ScreenCmd cmd;
+        if (!cmdQueue.dequeue(&cmd, 0)) {
+            break;
+        }
+        switch (cmd.cmd) {
+        case Cmd::SET_ON:
+            handleSetOn(true);
+            break;
+        case Cmd::SET_OFF:
+            handleSetOn(false);
+            break;
+        case Cmd::ON_PRESS:
+            handleOnPress();
+            break;
+        case Cmd::START_BLUETOOTH_PIN_SCREEN:
+            handleStartBluetoothPinScreen(cmd.bluetooth_pin);
+            break;
+        case Cmd::START_FIRMWARE_UPDATE_SCREEN:
+            handleStartFirmwareUpdateScreen();
+            break;
+        case Cmd::STOP_BLUETOOTH_PIN_SCREEN:
+        case Cmd::STOP_BOOT_SCREEN:
+            setFrames();
+            break;
+        case Cmd::PRINT:
+            handlePrint(cmd.print_text);
+            free(cmd.print_text);
+            break;
+        default:
+            DEBUG_MSG("BUG: invalid cmd\n");
+        }
+    }
+
+    if (!screenOn) { // If we didn't just wake and the screen is still off, then
+                     // stop updating until it is on again
+        enabled = false;
+        return 0;
+    }
+
+    // this must be before the frameState == FIXED check, because we always
+    // want to draw at least one FIXED frame before doing forceDisplay
+    ui.update();
+
+    // Switch to a low framerate (to save CPU) when we are not in transition
+    // but we should only call setTargetFPS when framestate changes, because
+    // otherwise that breaks animations.
+    if (targetFramerate != IDLE_FRAMERATE && ui.getUiState()->frameState == FIXED) {
+        // oldFrameState = ui.getUiState()->frameState;
+        DEBUG_MSG("Setting idle framerate\n");
+        targetFramerate = IDLE_FRAMERATE;
+        ui.setTargetFPS(targetFramerate);
+        forceDisplay();
+    }
+
+    // While showing the bootscreen or Bluetooth pair screen all of our
+    // standard screen switching is stopped.
+    if (showingNormalScreen) {
+        // standard screen loop handling here
+    }
+
+    // DEBUG_MSG("want fps %d, fixed=%d\n", targetFramerate,
+    // ui.getUiState()->frameState); If we are scrolling we need to be called
+    // soon, otherwise just 1 fps (to save CPU) We also ask to be called twice
+    // as fast as we really need so that any rounding errors still result with
+    // the correct framerate
+    return (1000 / targetFramerate);
 }
 
 void Screen::draw()
 {
     ui.update();
-    
 }
   
 } // namespace graphics

@@ -8,6 +8,7 @@ namespace graphics
     class Screen 
     {
         public:
+        uint8_t led;
             Screen(uint8_t address, int sda = -1, int scl = -1);
 
             void setup();
