@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name SSD1306_OLED-0.91-128x32)(type Legacy)(uri /home/fnavarro/Desktop/KiCad-SSD1306_OLED-0.91-128x32-master/SSD1306_OLED-0.91-128x32.lib)(options "")(descr ""))
+)
